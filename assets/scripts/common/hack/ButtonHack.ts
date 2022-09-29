@@ -2,7 +2,7 @@
 
 export enum ButtonHackEvent {
     /** 按钮状态变更 */
-    STATE_CHANGE = 'ButtonHackEvent-STATE_CHANGE',
+    STATE_CHANGE = "ButtonHackEvent-STATE_CHANGE",
 }
 
 export enum ButtonState {
@@ -25,4 +25,4 @@ cc.Button.prototype._applyTransition = function (state: any) {
 
     // 状态变更通知
     this.node.emit(ButtonHackEvent.STATE_CHANGE, state);
-}
+};

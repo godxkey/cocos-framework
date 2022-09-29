@@ -29,14 +29,14 @@ export interface TipData {
  */
 @ccclass
 @disallowMultiple
-@menu('Framework/基础组件/Layer')
+@menu("Framework/基础组件/Layer")
 export default class Layer extends cc.Component {
     public static inst: Layer = null;
 
-    @property(cc.Node) public MainLayer: cc.Node = null;
-    @property(cc.Node) public DialogLayer: cc.Node = null;
-    @property(cc.Node) public LoadingLayer: cc.Node = null;
-    @property(cc.Node) public TipLayer: cc.Node = null;
+    @property(cc.Node) private mainLayer: cc.Node = null;
+    @property(cc.Node) private dialogLayer: cc.Node = null;
+    @property(cc.Node) private loadingLayer: cc.Node = null;
+    @property(cc.Node) private tipLayer: cc.Node = null;
 
     /** 打开Loading层计数，为0时关闭，防止某些情况同时触发打开关闭Loading */
     private _loadingCount: number = 0;
@@ -45,20 +45,20 @@ export default class Layer extends cc.Component {
     /** 当前存在的tip文字数组 */
     private _tipTexts: string[] = [];
 
-    protected onLoad() {
+    protected onLoad(): void {
         Layer.inst = this;
         this.hideLoading();
     }
 
-    protected onDestroy() {
+    protected onDestroy(): void {
         Layer.inst = null;
     }
 
     /**
      * 获取文件名（截取url最后一个斜杠后的内容）
      */
-    public getNameByUrl(url: string) {
-        return url.substring(url.lastIndexOf('/') + 1, url.length);
+    public getNameByUrl(url: string): string {
+        return url.substring(url.lastIndexOf("/") + 1, url.length);
     }
 
     /**
@@ -73,12 +73,12 @@ export default class Layer extends cc.Component {
             return;
         }
 
-        this.MainLayer.destroyAllChildren();
+        this.mainLayer.destroyAllChildren();
         this.closeDialogs();
         this.clearTips();
-        let node: cc.Node = cc.instantiate(prefab);
+        let node: cc.Node = Res.instantiate(prefab);
         node.setPosition(0, 0);
-        this.MainLayer.addChild(node);
+        this.mainLayer.addChild(node);
         return node;
     }
 
@@ -94,12 +94,12 @@ export default class Layer extends cc.Component {
             return;
         }
 
-        this.MainLayer.destroyAllChildren();
+        this.mainLayer.destroyAllChildren();
         this.closeDialogs();
         this.clearTips();
-        let node: cc.Node = cc.instantiate(prefab);
+        let node: cc.Node = Res.instantiate(prefab);
         node.setPosition(0, 0);
-        this.MainLayer.addChild(node);
+        this.mainLayer.addChild(node);
         return node;
     }
 
@@ -108,8 +108,8 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      */
     public getDialog(url: string): DialogBase {
-        for (let i = 0; i < this.DialogLayer.childrenCount; i++) {
-            let node = this.DialogLayer.children[i];
+        for (let i = 0; i < this.dialogLayer.childrenCount; i++) {
+            let node = this.dialogLayer.children[i];
             let cmpt = node.getComponent(DialogBase);
             if (!cmpt) {
                 continue;
@@ -126,15 +126,15 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      * @param args DialogBase.open调用参数
      */
-    public openDialog(url: string, ...args: any[]) {
+    public openDialog(url: string, ...args: any[]): void {
         let prefab: cc.Prefab = Res.get(DirUrl.PREFAB_DIALOG + url, cc.Prefab);
         if (!prefab) {
             cc.error(`[Layer.openDialog] can not find dialog prefab: ${DirUrl.PREFAB_DIALOG + url}`);
             return;
         }
 
-        let node = cc.instantiate(prefab);
-        this.DialogLayer.addChild(node);
+        let node = Res.instantiate(prefab);
+        this.dialogLayer.addChild(node);
         node.setPosition(0, 0);
         let cmpt = node.getComponent(DialogBase);
         if (cmpt) {
@@ -150,7 +150,7 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      * @param args DialogBase.open调用参数
      */
-    public openUniDialog(url: string, ...args: any[]) {
+    public openUniDialog(url: string, ...args: any[]): void {
         if (this.getDialog(url)) {
             return;
         }
@@ -164,7 +164,7 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      * @param args DialogBase.open调用参数
      */
-    public async openDialogAsync(url: string, ...args: any[]) {
+    public async openDialogAsync(url: string, ...args: any[]): Promise<void> {
         this.showLoading();
         let prefab: cc.Prefab = await Res.load(DirUrl.PREFAB_DIALOG + url, cc.Prefab);
         this.hideLoading();
@@ -173,8 +173,8 @@ export default class Layer extends cc.Component {
             return;
         }
 
-        let node = cc.instantiate(prefab);
-        this.DialogLayer.addChild(node);
+        let node = Res.instantiate(prefab);
+        this.dialogLayer.addChild(node);
         node.setPosition(0, 0);
         let cmpt = node.getComponent(DialogBase);
         if (cmpt) {
@@ -191,7 +191,7 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      * @param args DialogBase.open调用参数
      */
-    public async openUniDialogAsync(url: string, ...args: any[]) {
+    public async openUniDialogAsync(url: string, ...args: any[]): Promise<void> {
         if (this.getDialog(url)) {
             return;
         }
@@ -204,7 +204,7 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      * @param play true：调用playClose播放弹窗关闭动画；false：直接调用close关闭弹窗
      */
-    public closeDialog(url: string, play: boolean = false) {
+    public closeDialog(url: string, play: boolean = false): void {
         let cmpt = this.getDialog(url);
         if (!cmpt) {
             return;
@@ -217,9 +217,9 @@ export default class Layer extends cc.Component {
      * @param url prefab在resources/prefab/dialog/下的路径
      * @param play true：调用playClose播放弹窗关闭动画；false：直接调用close关闭弹窗
      */
-    public closeDialogs(url: string = '', play: boolean = false) {
-        for (let i = this.DialogLayer.childrenCount - 1; i >= 0; i--) {
-            let node = this.DialogLayer.children[i];
+    public closeDialogs(url: string = "", play: boolean = false): void {
+        for (let i = this.dialogLayer.childrenCount - 1; i >= 0; i--) {
+            let node = this.dialogLayer.children[i];
             let cmpt = node.getComponent(DialogBase);
             if (!cmpt) {
                 continue;
@@ -234,7 +234,7 @@ export default class Layer extends cc.Component {
      * 异步等待弹窗关闭（只等待遍历到的第一个）
      * @param url prefab在resources/prefab/dialog/下的路径
      */
-    public async waitCloseDialog(url: string) {
+    public async waitCloseDialog(url: string): Promise<void> {
         let cmpt = this.getDialog(url);
         if (!cmpt) {
             return;
@@ -248,10 +248,10 @@ export default class Layer extends cc.Component {
      * 异步等待所有同路径弹窗关闭
      * @param url prefab在resources/prefab/dialog/下的路径
      */
-    public async waitCloseDialogs(url: string) {
-        let arr: Array<Promise<any>> = [];
-        for (let i = 0; i < this.DialogLayer.childrenCount; i++) {
-            let node = this.DialogLayer.children[i];
+    public async waitCloseDialogs(url: string): Promise<void[]> {
+        let arr: Array<Promise<void>> = [];
+        for (let i = 0; i < this.dialogLayer.childrenCount; i++) {
+            let node = this.dialogLayer.children[i];
             let cmpt = node.getComponent(DialogBase);
             if (!cmpt) {
                 continue;
@@ -269,29 +269,29 @@ export default class Layer extends cc.Component {
      * 弹出一条文字提示
      * @param data TipData | string 提示数据
      */
-    public async showTip(data: TipData | string) {
+    public async showTip(data: TipData | string): Promise<void> {
         // 处理tipData默认值
         let tipData: TipData = null;
-        if (typeof data === 'string') {
+        if (typeof data === "string") {
             tipData = {
                 text: data
             };
         } else {
             tipData = data;
         }
-        if (!tipData.hasOwnProperty('unique')) {
+        if (!tipData.hasOwnProperty("unique")) {
             tipData.unique = false;
         }
-        if (!tipData.hasOwnProperty('duration')) {
+        if (!tipData.hasOwnProperty("duration")) {
             tipData.duration = 1;
         }
-        if (!tipData.hasOwnProperty('fade')) {
+        if (!tipData.hasOwnProperty("fade")) {
             tipData.fade = 0.5;
         }
-        if (!tipData.hasOwnProperty('start')) {
+        if (!tipData.hasOwnProperty("start")) {
             tipData.start = cc.v2(0, 0);
         }
-        if (!tipData.hasOwnProperty('end')) {
+        if (!tipData.hasOwnProperty("end")) {
             tipData.end = cc.v2(0, 0);
         }
 
@@ -311,8 +311,8 @@ export default class Layer extends cc.Component {
                 cc.error(`[Layer.showTip] can not load prefab: ${ResUrl.PREFAB.TIP}`);
                 return;
             }
-            tipNode = cc.instantiate(prefab);
-            this.TipLayer.addChild(tipNode);
+            tipNode = Res.instantiate(prefab);
+            this.tipLayer.addChild(tipNode);
         }
 
         // 动画
@@ -327,7 +327,7 @@ export default class Layer extends cc.Component {
         tipNode.active = true;
         tipNode.opacity = 255;
         tipNode.setPosition(tipData.start);
-        tipNode.setSiblingIndex(this.TipLayer.childrenCount - 1);
+        tipNode.setSiblingIndex(this.tipLayer.childrenCount - 1);
         tipNode.runAction(cc.sequence(delay, cc.spawn(fade, moveTo), call));
 
         // 数据
@@ -337,21 +337,21 @@ export default class Layer extends cc.Component {
     /**
      * 清空所有提示
      */
-    public clearTips() {
+    public clearTips(): void {
         this._tipPool.length = 0;
         this._tipTexts.length = 0;
-        this.TipLayer.destroyAllChildren();
+        this.tipLayer.destroyAllChildren();
     }
 
     /**
      * 打开全局loading遮罩（打开与关闭的调用必须一一对应）
      */
-    public showLoading() {
+    public showLoading(): void {
         this._loadingCount++;
-        if (!this.LoadingLayer.active) {
-            this.LoadingLayer.active = true;
+        if (!this.loadingLayer.active) {
+            this.loadingLayer.active = true;
             // 默认0.5s后才显示loading内容
-            let content = this.LoadingLayer.getChildByName('content');
+            let content = this.loadingLayer.getChildByName("content");
             if (content) {
                 content.active = false;
                 this.unscheduleAllCallbacks();
@@ -365,11 +365,11 @@ export default class Layer extends cc.Component {
     /**
      * 关闭全局loading遮罩
      */
-    public hideLoading() {
+    public hideLoading(): void {
         this._loadingCount--;
         if (this._loadingCount <= 0) {
             this._loadingCount = 0;
-            this.LoadingLayer.active = false;
+            this.loadingLayer.active = false;
             this.unscheduleAllCallbacks();
         }
     }

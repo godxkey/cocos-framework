@@ -1,13 +1,22 @@
+import { Group, Tween, TWEEN } from "./Tween";
+
+enum TimeUnit {
+    S,
+    M,
+    H,
+    D
+}
+
 /**
  * 工具类
  */
- export default class Tool {
+export default class Tool {
     /**
      * 深拷贝
      * @param source 源数据
      */
     public static deepCopy<T>(source: T): T {
-        if (typeof source !== 'object' || source === null || source instanceof RegExp) {
+        if (typeof source !== "object" || source === null || source instanceof RegExp) {
             return source;
         }
 
@@ -34,7 +43,7 @@
     public static wait(seconds: number): Promise<void> {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                resolve(null);
+                resolve();
             }, seconds * 1000);
         });
     }
@@ -47,6 +56,21 @@
             cmpt.scheduleOnce(() => {
                 resolve();
             }, seconds);
+        });
+    }
+
+    /**
+     * 异步等待 - tween 默认group为TWEEN
+     */
+    public static waitTween(cmpt: cc.Component, seconds: number, group: Group = TWEEN): Promise<void> {
+        return new Promise((resolve, reject) => {
+            new Tween({ k: 0 }, group)
+                .to({ k: 1 }, seconds * 1000)
+                .onComplete(() => {
+                    resolve();
+                })
+                .start()
+                .bindCCObject(cmpt);
         });
     }
 
@@ -96,16 +120,16 @@
      * @param min 
      * @param max 
      * @param value
-     * @param includeEdge 是否包含边界值min和max，默认包含
+     * @param includeEdge true(默认值): [min, max]; false: (min, max)
      */
-    public static inRange(min: number, max: number, value: number, includeEdge: boolean = true) {
+    public static inRange(min: number, max: number, value: number, includeEdge: boolean = true): boolean {
         return includeEdge ? value >= min && value <= max : value > min && value < max;
     }
 
     /**
      * 获取区间[min, max)的整数，传入1个参数则区间为[0, min)
      */
-    public static randInt(min: number, max: number = undefined) {
+    public static randInt(min: number, max: number = undefined): number {
         if (max === undefined) {
             max = min;
             min = 0;
@@ -118,12 +142,33 @@
     /**
      * 获取区间[min, max)的浮点数，传入1个参数则区间为[0, min)
      */
-    public static randFloat(min: number, max: number = undefined) {
+    public static randFloat(min: number, max: number = undefined): number {
         if (max === undefined) {
             max = min;
             min = 0;
         }
         return Math.random() * (max - min) + min;
+    }
+
+    /**
+     * 根据权重数组进行随机，返回结果下标
+     * @param weightArr 权重数组
+     * @returns 随机到的权重数组下标
+     */
+    public static randWeightIdx(weightArr: number[]) {
+        let sum = 0;
+        for (let i = 0; i < weightArr.length; i++) {
+            sum += weightArr[i];
+        }
+        let randNum = this.randFloat(0, sum);
+        let curValue = 0
+        for (let i = 0; i < weightArr.length; i++) {
+            curValue += weightArr[i];
+            if (randNum < curValue) {
+                return i;
+            }
+        }
+        return weightArr.length - 1;
     }
 
     /**
@@ -135,7 +180,7 @@
             arr.push(str[i]);
         }
         arr = this.shuffle(arr);
-        str = '';
+        str = "";
         arr.forEach((v) => {
             str += v;
         });
@@ -165,16 +210,18 @@
 
     /**
      * 判断数组中是否有某个元素
+     * @param arr 数组
+     * @param param 元素值或表达元素值满足某种条件的函数
      */
-    public static arrayHas<T>(arr: T[], ele: T): boolean {
-        let idx = arr.findIndex((e) => { return e === ele; });
+    public static arrayHas<T>(arr: T[], param: T | ((ele: T) => boolean)): boolean {
+        let idx = typeof param !== "function" ? arr.findIndex((e) => { return e === param; }) : arr.findIndex(param as ((ele: T) => boolean));
         return idx >= 0;
     }
 
     /**
      * 根据下标交换数组两个元素位置
      */
-    public static arraySwap<T>(arr: T[], idx1: number, idx2: number) {
+    public static arraySwap<T>(arr: T[], idx1: number, idx2: number): void {
         if (idx1 === idx2 || !this.inRange(0, arr.length - 1, idx1) || !this.inRange(0, arr.length - 1, idx2)) {
             return;
         }
@@ -184,7 +231,7 @@
     /**
      * 将元素从fromIdx位置移到toIdx位置，其余元素相对位置不变
      */
-    public static arrayMove<T>(arr: T[], fromIdx: number, toIdx: number) {
+    public static arrayMove<T>(arr: T[], fromIdx: number, toIdx: number): void {
         if (fromIdx === toIdx || !this.inRange(0, arr.length - 1, fromIdx) || !this.inRange(0, arr.length - 1, toIdx)) {
             return;
         }
@@ -220,16 +267,105 @@
     }
 
     /**
+     * 对单位为秒的时间生成格式化时间字符串
+     * @param sec 时间s
+     * @param format 格式化字符串
+     * @example
+     * // 当format为string时，会以format中的最大时间单位进行格式化
+     * Tool.formatTimeString(3601, "m:s"); // 60:1
+     * Tool.formatTimeString(3601, "mm:ss"); // 60:01
+     * Tool.formatTimeString(3601, "hh:mm:ss"); // 01:00:01
+     * 
+     * // 当format为object时，会以传入的sec计算最大的时间单位，并选择format对应的字符串进行格式化
+     * Tool.formatTimeString(100, {
+     *     S: "s秒",
+     *     M: "m分s秒",
+     *     H: "h时m分s秒",
+     *     D: "d天h时m分s秒"
+     * }); // 1分40秒
+     * Tool.formatTimeString(100000, {
+     *     S: "s秒",
+     *     M: "m分s秒",
+     *     H: "h时m分s秒",
+     *     D: "d天h时m分s秒"
+     * }); // 1天3时46分40秒
+     */
+    public static formatTimeString(sec: number, format: string | { "S": string; "M": string; "H": string; "D": string } = "hh:mm:ss"): string {
+        let seconds: number = Math.floor(sec);
+        let minutes: number = Math.floor(seconds / 60);
+        let hours: number = Math.floor(seconds / 3600);
+        let days: number = Math.floor(seconds / 86400);
+
+        let maxUnit: TimeUnit = TimeUnit.S;
+        let result: string = "";
+
+        if (typeof format === "string") {
+            // 查询格式化字符串中最大的单位
+            result = format;
+            if (/d/i.test(format)) {
+                maxUnit = TimeUnit.D;
+            } else if (/h/i.test(format)) {
+                maxUnit = TimeUnit.H;
+            } else if (/m/i.test(format)) {
+                maxUnit = TimeUnit.M;
+            }
+        } else {
+            // 以传入的数值判断最大单位
+            if (days > 0) {
+                maxUnit = TimeUnit.D;
+                result = format.D;
+            } else if (hours > 0) {
+                maxUnit = TimeUnit.H;
+                result = format.H;
+            } else if (minutes > 0) {
+                maxUnit = TimeUnit.M;
+                result = format.M;
+            } else {
+                maxUnit = TimeUnit.S;
+                result = format.S;
+            }
+        }
+
+        if (maxUnit > TimeUnit.S) {
+            seconds %= 60;
+        }
+        if (maxUnit > TimeUnit.M) {
+            minutes %= 60;
+        }
+        if (maxUnit > TimeUnit.H) {
+            hours %= 24;
+        }
+
+        let data = {
+            d: days,
+            hh: hours < 10 ? `0${hours}` : `${hours}`,
+            h: hours,
+            mm: minutes < 10 ? `0${minutes}` : `${minutes}`,
+            m: minutes,
+            ss: seconds < 10 ? `0${seconds}` : `${seconds}`,
+            s: seconds
+        };
+
+        result = result.toLowerCase();
+        for (const key in data) {
+            const value = data[key];
+            result = result.replace(new RegExp(key, "g"), value);
+        }
+
+        return result;
+    }
+
+    /**
      * 子节点递归处理
      * @param node 需要递归处理的节点或节点数组
      * @param cb 节点处理函数
      * @param thisArg cb绑定的this对象
      */
-    public static nodeRecursive(node: cc.Node | cc.Node[], cb: (n: cc.Node) => void, thisArg: any = undefined) {
+    public static nodeRecursive(node: cc.Node | cc.Node[], cb: (n: cc.Node) => void, thisArg: any = undefined): void {
         if (node instanceof cc.Node) {
             cb.call(thisArg, node);
             node.children.forEach((n: cc.Node) => { this.nodeRecursive(n, cb, thisArg); });
-        } else {
+        } else if (Array.isArray(node)) {
             node.forEach((n: cc.Node) => { this.nodeRecursive(n, cb, thisArg); });
         }
     }
@@ -237,7 +373,7 @@
     /**
      * destroy并立即remove传入节点的所有子节点
      */
-    public static clearChildren(...nodes: cc.Node[]) {
+    public static clearChildren(...nodes: cc.Node[]): void {
         nodes.forEach((e) => {
             e.destroyAllChildren();
             e.removeAllChildren();

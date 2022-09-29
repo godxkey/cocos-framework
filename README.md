@@ -1,5 +1,5 @@
 # Cocos Framework
-一个基于Cocos Creator2.4.6的框架
+一个基于Cocos Creator2.4.10的框架
 
 ## 目录
 - [前言](#preface)
@@ -9,6 +9,7 @@
     - [全局时间管理器](#framework-timer)
     - [全局层级管理](#framework-layer)
     - [全局事件管理器](#framework-events)
+    - [资源管理器](#framework-res)
     - [音频管理器](#framework-audio)
     - [多语言](#framework-i18n)
     - [一些ui组件](#framework-ui)
@@ -16,6 +17,7 @@
     - [引擎源码hack](#framework-hack)
     - [几个shader](#framework-shader)
 - [命名规范](#name)
+- [参考资料](#reference)
 
 ## <a id="preface"></a>前言
 这套框架是我个人开发过程中的积累，已应用于我个人的几个小项目中。单scene多prefab形式，轻量，各个功能基本都可单独拆解开使用。
@@ -35,7 +37,7 @@
 #### <a id="framework-timer"></a>全局时间管理器
 >文件路径(scripts/common/cmpt/base/Timer.ts)
 
-组件需要绑在场景的根节点或者常驻节点上，由timeScale控制每帧间隔时间的缩放。引入并修改了开源库tween.js，在Timer组件中更新和控制，使用方式请参考 https://github.com/tweenjs/tween.js
+组件在场景加载后会自动绑定常驻节点，由timeScale控制每帧间隔时间的缩放。引入并修改了开源库tween.js，在Timer组件中更新和控制，使用方式请参考 https://github.com/tweenjs/tween.js
 
 关于我对tween.js的修改
 1. 设置了新的Group，用以执行受timeScale影响的tween动画
@@ -73,7 +75,7 @@ comp.destory();
 ```
 
 - **属性**
-    - **`timeScale: number`**  dt缩放倍数，1为正常速度，0为暂停
+    - **`timeScale: number`**  dt缩放倍数，1为正常速度，0为暂停。修改时触发时间缩放值修改事件
     - **`realDt: number`**  距上一帧间隔的真实时间
     - **`scaleDt: number`**  距上一帧间隔经过timeScale缩放的时间
 - **方法**
@@ -90,7 +92,7 @@ comp.destory();
 ```typescript
 // 弹窗组件需要继承DialogBase，并重写open方法和close方法，用来处理弹窗打开和关闭时的逻辑
 export default class DlgExample extends DialogBase {
-    public static pUrl: string = 'example/DlgExample';
+    public static pUrl: string = "example/DlgExample";
 
     /**
      * @override
@@ -114,7 +116,7 @@ export default class DlgExample extends DialogBase {
 // 建议在弹窗组件类上加一个静态属性pUrl用以标明路径，这样在代码里便于查找和跳转引用
 Layer.inst.openUniDialog(DlgExample.pUrl, 1, 2);
 // 如果不喜欢上面的方式，也可直接填写路径
-Layer.inst.openUniDialog('example/DlgExample', 1, 2);
+Layer.inst.openUniDialog("example/DlgExample", 1, 2);
 ```
 
 可异步等待某个弹窗关闭
@@ -133,7 +135,7 @@ await Layer.inst.waitCloseDialog(DlgExample.pUrl);
     - **`openDialogAsync(url: string, ...args: any[]): Promise<void>`**  （异步方法）打开弹窗
     - **`openUniDialogAsync(url: string, ...args: any[]): Promise<void>`**  （异步方法）打开唯一弹窗，同一弹窗节点只能同时存在一个
     - **`closeDialog(url: string, play: boolean = false)`**  关闭遍历到的第一个弹窗
-    - **`closeDialogs(url: string = '', play: boolean = false)`**  关闭所有同路径弹窗，不传参则关闭所有弹窗
+    - **`closeDialogs(url: string = "", play: boolean = false)`**  关闭所有同路径弹窗，不传参则关闭所有弹窗
     - **`waitCloseDialog(url: string): Promise<void>`**  异步等待弹窗关闭（只等待遍历到的第一个）
     - **`waitCloseDialogs(url: string): Promise<void>`**  异步等待所有同路径弹窗关闭
     - **`showTip(data: TipData | string)`**  弹出一条文字提示
@@ -205,7 +207,7 @@ export default class Test extends cc.Component {
 当在某处触发事件，对应的监听函数便会被调用，可以给监听函数传参。如果是异步监听函数，也可用await等待所有监听函数执行完毕
 ```typescript
     // 发送EventName.GAME_PAUSE事件，并传参
-    Events.emit(EventName.GAME_PAUSE, 1, ['2']);
+    Events.emit(EventName.GAME_PAUSE, 1, ["2"]);
     // 也可以await等待所有监听函数执行完毕
     await Events.emitAsync(EventName.GAME_PAUSE);
 ```
@@ -223,6 +225,25 @@ export default class Test extends cc.Component {
     - **`targetOff(target: Object)`**  移除target上注册的所有事件
     - **`emit(event: EventName, ...args: any[])`**  派发事件
     - **`emitAsync(event: EventName, ...args: any[]): Promise<void>`**  派发事件--异步
+
+#### <a id="framework-res"></a>资源管理器
+>文件路径(scripts/common/util/Res.ts)
+
+主要是对prefab、图片等进行资源管理，内部自动进行引用计数的加减，可保证资源的安全释放，使用时需要注意以下要点：
+1. 尽量使用此类的接口加载所有资源、instantiate节点实例，否则需要自行管理引用计数
+2. Res.instantiate不要对动态生成的节点使用，尽量只instantiate prefab上预设好的节点，否则有可能会导致引用计数的管理出错
+3. 调用load接口时如需传入release参数，则同一资源在全局调用load时release参数尽量保持一致，否则可能不符合预期
+4. 请使用ResSpine、ResSprite组件去动态加载spine、图片资源，否则需要自行管理这些资源的引用计数
+
+- **属性**
+    - **`releaseSec: number`**  资源释放的间隔时间（秒），资源超过此间隔未被load才可释放
+
+- **方法**
+    - **`get<T extends cc.Asset>(url: string, type: typeof cc.Asset): T`**  获取缓存资源。通常不应直接调用此接口，除非调用前能确保资源已加载并且能自行管理引用计数
+    - **`load<T extends cc.Asset>(url: string, type: typeof cc.Asset, release: boolean = true): Promise<T>`**  加载resources文件夹下单个资源
+    - **`loadDir<T extends cc.Asset>(url: string, type: typeof cc.Asset, release: boolean = true): Promise<T[]>`**  加载resources文件夹下某个文件夹内某类资源
+    - **`instantiate(original: cc.Node | cc.Prefab, related?: cc.Node | cc.Prefab): cc.Node`**  获取节点实例，建立节点与缓存prefab的联系
+    - **`releaseAll()`**  尝试释放所有缓存资源
 
 #### <a id="framework-audio"></a>音频管理器
 >文件路径(scripts/common/util/AudioManager.ts)
@@ -253,52 +274,82 @@ export default class Test extends cc.Component {
 
 支持文字以及图片的多语言切换，不同语言的同一图片需命名一致，配置路径如下，如需更改配置路径请自行更换。详见工程示例
 
-语言表路径：scripts/i18n/config/En.ts和scripts/i18n/config/Zh.ts
+>语言表路径：scripts/i18n/config/En.ts和scripts/i18n/config/Zh.ts
 
-图片路径：resources/textures/localizedImage/en/和resources/textures/localizedImage/zh/
+>图片路径：resources/textures/localizedImage/en/和resources/textures/localizedImage/zh/
 
+
+如果需要替换字符串中的占位符（形如"**%{xxx}**"的字符串为占位符），支持以下两种不同的传参形式来获取替换后的字符串
+```typescript
+// 语言表 {"test": "test %{arg1} %{arg2} !!!"}
+I18n.getText("test", {arg1: "somthing", arg2: 2}); // => "test somthing 2 !!!"
+I18n.getText("test", "somthing", 2); // => "test somthing 2 !!!"
+```
 
 - **属性**
-    - **`curLang: LangType`**  当前语言
+    - **`curLang: LangType`**  当前语言类型
 
 - **方法**
     - **`init(language: LangType = LangType.NONE)`**  初始化语言
     - **`switch(language: LangType)`**  切换语言
     - **`updateLocalizedCmpt()`**  更新所有多语言组件
     - **`getKeyByValue(value: string): string`**  通过语言表value获取对应的key
-    - **`getText(key: string, opt?: any): string`**  获取语言表中的字符串
+    - **`getText(key: string, ...option: [{ [k: string]: string | number }] | Array<string | number>): string`**  通过key获取语言表中的字符串
 
 
 #### <a id="framework-ui"></a>一些ui组件
 >文件路径(scripts/common/cmpt/)
-- 虚拟列表VirtualList
+- **VirtualList** 虚拟列表，仅生成mask区域内所需的最少节点，且支持节点分层
 
-    仅生成mask区域内所需的最少节点，且支持节点分层
+- **CircleList** 无限循环列表/轮播图
 
-- 按钮相关
-    - 按钮分组，阻止同一分组内的多个按钮同时点击
-    - 按钮按下时改变子节点的坐标
+- **AnimValue** 渐变动画组件基类，可基于此组件实现各种数值渐变动画
+    - **AnimValueLabel** 数字渐变动画组件
+    - **AnimValueProgress** 进度条渐变动画组件
+    - **AnimValueProgressHP** 游戏血条组件
+
+- 按钮组件
+    - **ButtonSingle** 按钮分组，阻止同一分组内的多个按钮同时点击
+    - **ButtonChildPos** 根据按钮状态改变子节点的坐标
+    - **ButtonChildGray** 根据按钮状态将子节点置灰
+
+- 资源管理组件，结合[资源管理器](#framework-res)，自动管理动态加载的资源引用计数
+    - **ResSpine**
+    - **ResSprite**
+
+- **MultiSprite** 基于Multi-Texture<sup>[[1]](#reference1)</sup>实现的渲染组件，支持多图集合批，需通过**MultiTextureManager**管理合批的纹理
+    - 兼容web与native
+    - 支持Sprite的simple、sliced、tiled、filled渲染类型
+    - 支持Cocos自动图集与动态合图的纹理
+    - 支持动态修改合批的纹理--**MultiTextureManager.setTexture(idx: number, tex: cc.Texture2D)**
+
 - ......
 
 #### <a id="framework-tool"></a>常用工具类
 >文件路径(scripts/common/util/)
+- **Tool** 常用工具接口
+- **Decorator** 装饰器
 
 #### <a id="framework-hack"></a>引擎源码hack
 >文件路径(scripts/common/hack/)
 
 #### <a id="framework-shader"></a>几个shader
-
+>文件路径(res/shader/)
 
 ## <a id="name"></a>命名规范
 - 文件夹使用小驼峰 files
 - 文件名使用大驼峰 File.ts
 - 类名使用大驼峰 FileClass
-- 属性名、函数名使用小驼峰 func（个人习惯property装饰的属性使用大驼峰）
+- 属性名、函数名使用小驼峰 func
 - 枚举
 ```
 enum LangType {
-    NONE = '',
-    ZH = 'zh',
-    EN = 'en'
+    NONE = "",
+    ZH = "zh",
+    EN = "en"
 }
 ```
+- 字符串尽量使用双引号
+
+## <a id="reference"></a>参考资料
+1. <a id="reference1"></a>https://forum.cocos.org/t/topic/121618

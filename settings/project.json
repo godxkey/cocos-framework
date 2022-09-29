@@ -1,5 +1,5 @@
 {
-  "last-module-event-record-time": 1632488138669,
+  "last-module-event-record-time": 1657374797531,
   "group-list": [
     "default"
   ],
@@ -37,5 +37,9 @@
     "audience": {
       "enable": false
     }
-  }
+  },
+  "migrate-history": [
+    "cloud-function"
+  ],
+  "start-scene": "fafab544-3253-4695-b807-f3616f90183b"
 }

@@ -4,9 +4,11 @@ import { eventsOnLoad } from "../../common/util/Events";
 import Res from "../../common/util/Res";
 import DlgAnimValue from "../dialog/DlgAnimValue";
 import DlgAudio from "../dialog/DlgAudio";
+import DlgCircleList from "../dialog/DlgCircleList";
 import DlgEvents from "../dialog/DlgEvents";
 import DlgI18N from "../dialog/DlgI18N";
 import DlgLayer from "../dialog/DlgLayer";
+import DlgMultiTexture from "../dialog/DlgMultiTexture";
 import DlgShader from "../dialog/DlgShader";
 import DlgShake from "../dialog/DlgShake";
 import DlgTimer from "../dialog/DlgTimer";
@@ -39,15 +41,19 @@ export default class Game extends cc.Component {
     }
 
     private onClickButton() {
-        Layer.inst.openUniDialogAsync('DlgButton');
+        Layer.inst.openUniDialogAsync("DlgButton");
     }
 
     private onClickShake() {
         Layer.inst.openUniDialogAsync(DlgShake.pUrl);
     }
 
-    private onClickList() {
+    private onClickVirtualList() {
         Layer.inst.openUniDialogAsync(DlgVirtualList.pUrl);
+    }
+
+    private onClickCircleList() {
+        Layer.inst.openUniDialogAsync(DlgCircleList.pUrl);
     }
 
     private async onClickAudio() {
@@ -63,5 +69,9 @@ export default class Game extends cc.Component {
 
     private onClickEvent() {
         Layer.inst.openUniDialogAsync(DlgEvents.pUrl);
+    }
+
+    private onClickMultiTexture() {
+        Layer.inst.openUniDialogAsync(DlgMultiTexture.pUrl);
     }
 }

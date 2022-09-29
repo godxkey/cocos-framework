@@ -1,3 +1,4 @@
+import EditorTool from "../../util/EditorTool";
 import Tool from "../../util/Tool";
 
 const { ccclass, property, disallowMultiple, menu } = cc._decorator;
@@ -7,45 +8,59 @@ const { ccclass, property, disallowMultiple, menu } = cc._decorator;
  */
 @ccclass
 @disallowMultiple
-@menu('Framework/基础组件/DialogBase')
+@menu("Framework/基础组件/DialogBase")
 export default class DialogBase extends cc.Component {
     /** 弹窗prefab在resources/prefab/dialog/下的路径 */
-    public static pUrl: string = '';
+    public static pUrl: string = "";
 
     @property(cc.Animation)
-    public DlgAnim: cc.Animation = null;
+    private dlgAnim: cc.Animation = null;
 
     @property({
         type: cc.AnimationClip,
-        tooltip: CC_DEV && '打开弹窗的动画',
-        visible() { return !!this.DlgAnim; }
+        tooltip: CC_DEV && "打开弹窗的动画",
+        visible() { return !!this.dlgAnim; }
     })
-    public OpenClip: cc.AnimationClip = null;
+    private openClip: cc.AnimationClip = null;
 
     @property({
         type: cc.AnimationClip,
-        tooltip: CC_DEV && '关闭弹窗的动画',
-        visible() { return !!this.DlgAnim; }
+        tooltip: CC_DEV && "关闭弹窗的动画",
+        visible() { return !!this.dlgAnim; }
     })
-    public CloseClip: cc.AnimationClip = null;
+    private closeClip: cc.AnimationClip = null;
 
     /** 外部的resolve函数，在弹窗close时调用 */
     private _resolveList: Array<(value?: any) => void> = [];
 
-    private _prefabUrl: string = '';
+    private _prefabUrl: string = "";
     /** 弹窗prefab在resources/prefab/dialog/下的路径 */
-    public get prefabUrl() { return this._prefabUrl; }
+    public get prefabUrl(): string { return this._prefabUrl; }
 
-    protected onLoad() {
-        if (this.DlgAnim) {
-            this.OpenClip && this.DlgAnim.addClip(this.OpenClip);
-            this.CloseClip && this.DlgAnim.addClip(this.CloseClip);
-            this.DlgAnim.on(cc.Animation.EventType.FINISHED, this.onAnimFinished, this);
+    protected onLoad(): void {
+        if (this.dlgAnim) {
+            this.openClip && this.dlgAnim.addClip(this.openClip);
+            this.closeClip && this.dlgAnim.addClip(this.closeClip);
+            this.dlgAnim.on(cc.Animation.EventType.FINISHED, this.onAnimFinished, this);
         }
     }
 
-    protected onAnimFinished() {
-        if (this.DlgAnim.currentClip === this.CloseClip) {
+    protected resetInEditor(): void {
+        if (CC_EDITOR) {
+            for (let i = 0; i < this.node.childrenCount; i++) {
+                let anim: cc.Animation = this.node.children[i].getComponent(cc.Animation);
+                if (anim) {
+                    this.dlgAnim = anim;
+                    EditorTool.load<cc.AnimationClip>("res/animation/dialog/open.anim").then((v) => { this.openClip = v; });
+                    EditorTool.load<cc.AnimationClip>("res/animation/dialog/close.anim").then((v) => { this.closeClip = v; });
+                    break;
+                }
+            }
+        }
+    }
+
+    protected onAnimFinished(): void {
+        if (this.dlgAnim.currentClip === this.closeClip) {
             this.close();
         }
     }
@@ -53,37 +68,37 @@ export default class DialogBase extends cc.Component {
     /**
      * 打开动画
      */
-    public playOpen() {
-        if (this.DlgAnim && this.OpenClip) {
-            this.DlgAnim.play(this.OpenClip.name);
+    public playOpen(): void {
+        if (this.dlgAnim && this.openClip) {
+            this.dlgAnim.play(this.openClip.name);
         }
     }
 
     /**
      * 关闭动画，动画结束回调中会调用close销毁
      */
-    public playClose() {
-        if (this.DlgAnim && this.CloseClip) {
-            if (this.DlgAnim.getAnimationState(this.CloseClip.name).isPlaying) {
+    public playClose(): void {
+        if (this.dlgAnim && this.closeClip) {
+            if (this.dlgAnim.getAnimationState(this.closeClip.name).isPlaying) {
                 return;
             }
-            this.DlgAnim.play(this.CloseClip.name);
+            this.dlgAnim.play(this.closeClip.name);
         } else {
             this.close();
         }
     }
 
     /**
-     * @virtual
      * 打开弹窗时的处理
+     * @virtual
      */
     public open(...args: any[]): any {
     }
 
     /**
-     * @virtual
      * 关闭弹窗，销毁节点时的处理。
      * - 必须使用此接口销毁，子类重写时请调用super.close()
+     * @virtual
      */
     public close(): any {
         this._resolveList.forEach((resolve) => { resolve(); });
@@ -92,17 +107,17 @@ export default class DialogBase extends cc.Component {
     }
 
     /**
-     * @virtual
      * 关闭按钮回调
+     * @virtual
      */
-    protected onClickClose() {
+    protected onClickClose(): void {
         this.playClose();
     }
 
     /**
      * 添加外部resolve函数，在弹窗close时调用
      */
-    public addResolve(resolve: (value?: any) => void) {
+    public addResolve(resolve: (value?: any) => void): void {
         Tool.arrayAdd(this._resolveList, resolve);
     }
 }

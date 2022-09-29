@@ -7,9 +7,9 @@ import Zh from "./config/Zh";
  * 语言类型
  */
 export enum LangType {
-    NONE = '',
-    ZH = 'zh',
-    EN = 'en'
+    NONE = "",
+    ZH = "zh",
+    EN = "en"
 }
 
 /**
@@ -22,14 +22,14 @@ export default class I18n {
     private static _phrases: any = null;
 
     private static _curLang: LangType = LangType.NONE;
-    /* 当前语言 */
-    public static get curLang() { return this._curLang; }
+    /* 当前语言类型 */
+    public static get curLang(): LangType { return this._curLang; }
 
     /**
      * 初始化语言
      * @param language
      */
-    public static init(language: LangType = LangType.NONE) {
+    public static init(language: LangType = LangType.NONE): void {
         if (this._init) {
             return;
         }
@@ -42,7 +42,7 @@ export default class I18n {
      * 切换语言
      * @param language
      */
-    public static switch(language: LangType) {
+    public static switch(language: LangType): void {
         if (this._curLang === language) {
             return;
         }
@@ -66,7 +66,7 @@ export default class I18n {
     /**
     * 更新所有多语言组件
     */
-    public static updateLocalizedCmpt() {
+    public static updateLocalizedCmpt(): void {
         Events.emit(EventName.UPDATE_LOCALIZED_CMPT);
     }
 
@@ -78,42 +78,50 @@ export default class I18n {
     public static getKeyByValue(value: string): string {
         if (!this._phrases) {
             cc.error(`[I18n.getKeyByValue] 未正确初始化`);
-            return '';
+            return "";
         }
         for (let key in this._phrases) {
             if (this._phrases[key] === value) {
                 return key;
             }
         }
-        return '';
+        return "";
     }
 
     /**
-     * 获取语言表中的字符串
+     * 通过key获取语言表中的字符串
      * @param key 语言表中的key
-     * @param opt 用于替换的数据
+     * @param option 用于替换的数据，可以传键值对，也可以按顺序传参
      * @example
-     * // 语言表 {"test": "test %{arg1} !!!"}
-     * I18n.getText('test', {arg1: 'something'}); => 'test somthing !!!'
+     * // 语言表 {"test": "test %{arg1} %{arg2} !!!"}
+     * I18n.getText("test", {arg1: "somthing", arg2: 2}); => "test somthing 2 !!!"
+     * I18n.getText("test", "somthing", 2); => "test somthing 2 !!!"
      */
-    public static getText(key: string, opt?: any): string {
+    public static getText(key: string, ...option: [{ [k: string]: string | number }] | Array<string | number>): string {
         if (!this._phrases) {
             cc.error(`[I18n.getText] 未正确初始化`);
-            return '';
+            return "";
         }
         if (!key) {
-            return '';
+            return "";
         }
 
         let text: string = this._phrases.hasOwnProperty(key) ? this._phrases[key] : key;
-        if (opt) {
-            for (let arg in opt) {
-                if (opt.hasOwnProperty(arg)) {
-                    let reg = new RegExp(`%{${arg}}`, 'g');
-                    text = text.replace(reg, opt[arg]);
+        if (option.length === 1 && Object.prototype.toString.call(option[0]) === "[object Object]") {
+            // 参数为键值对
+            for (let arg in (option[0] as { [k: string]: string | number })) {
+                if (option[0].hasOwnProperty(arg)) {
+                    let reg = new RegExp(`%{${arg}}`, "g");
+                    text = text.replace(reg, `${option[0][arg]}`);
                 }
             }
+        } else {
+            // 参数为数组
+            option.forEach((value: any) => {
+                text = text.replace(/%\{.*?\}/, `${value}`);
+            });
         }
+
         return text;
     }
 }
